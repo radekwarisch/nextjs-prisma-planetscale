@@ -4,7 +4,7 @@ import styles from '../styles/Home.module.css'
 
 const dev = process.env.NODE_ENV !== 'production';
 
-const server = dev ? 'http://localhost:3000' : 'https://your_deployment.server.com';
+const server = dev ? 'http://localhost:3000' : 'https://nextjs-prisma-planetscale-rust.vercel.app';
 
 const fetchData = async () => {
   const response = await fetch(`${server}/api/hello`);
