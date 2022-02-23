@@ -2,7 +2,29 @@ import Head from 'next/head'
 import Image from 'next/image'
 import styles from '../styles/Home.module.css'
 
-export default function Home() {
+const dev = process.env.NODE_ENV !== 'production';
+
+const server = dev ? 'http://localhost:3000' : 'https://your_deployment.server.com';
+
+const fetchData = async () => {
+  const response = await fetch(`${server}/api/hello`);
+
+  if (!response.ok) {
+    throw new Error(`Error: ${response.status}`);
+  }
+  return response.json();
+};
+
+export async function getServerSideProps() {
+  const hello = await fetchData();
+
+  return {
+    props: {hello}
+  }
+}
+
+export default function Home({hello}) {
+  console.log(hello);
   return (
     <div className={styles.container}>
       <Head>
@@ -14,7 +36,10 @@ export default function Home() {
       <main className={styles.main}>
         <h1 className={styles.title}>
           Welcome to <a href="https://nextjs.org">Next.js!</a>
+          
         </h1>
+
+        Server side call: {hello.name}
 
         <p className={styles.description}>
           Get started by editing{' '}
