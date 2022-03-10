@@ -4,15 +4,25 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "connect-db": "pscale connect nextjs-prisma-planetscale development --port 3309",
+    "push-db": "npx prisma db push"
   },
   "dependencies": {
+    "@prisma/client": "^3.10.0",
     "next": "12.1.0",
     "react": "17.0.2",
     "react-dom": "17.0.2"
   },
   "devDependencies": {
+    "@types/node": "^17.0.21",
+    "@types/react": "^17.0.39",
+    "autoprefixer": "^10.4.2",
     "eslint": "8.9.0",
-    "eslint-config-next": "12.1.0"
+    "eslint-config-next": "12.1.0",
+    "postcss": "^8.4.8",
+    "prisma": "^3.10.0",
+    "tailwindcss": "^3.0.23",
+    "typescript": "^4.6.2"
   }
 }
