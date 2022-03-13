@@ -1,46 +1,161 @@
 import Head from "next/head";
-import Image from "next/image";
-import { useState } from "react";
+import { useWeb3 } from "@3rdweb/hooks";
+import { Box, Button, Menu, Text, Heading, Divider } from "@chakra-ui/react";
+import { IoMdWallet } from "react-icons/io";
+import { useEffect, useMemo, useState } from "react";
+import NetworkMetadata from "../components/NetworkMetadata";
+import { fetchQuestions, addQuestion } from "../common/questions";
+import { addAnswer, fetchAnswers, purchaseAnswer } from "../common/answers";
 
-const server = process.env.NEXT_PUBLIC_SERVER_URL;
-
-const fetchUsers = async () => {
-  const response = await fetch(`${server}/api/users`);
-
-  if (!response.ok) {
-    throw new Error(`Error: ${response.status}`);
-  }
-  return response.json();
+const exampleQuestion = {
+  title: "test question title",
+  content: "what is the meaning of life?",
 };
 
-const addUser = async (user) => {
-  await fetch(`${server}/api/users`, {
-    method: "POST",
-    body: JSON.stringify(user),
-    headers: { "Content-Type": "application/json" },
+const exampleAnswer = {
+  content: "dunno",
+};
+
+const enrichAnswersWithUnlockedPerQuestion = (unlockedAnswers) => (curr) =>
+  curr.map((question) => {
+    const unlockedAnswersPerQuestion = unlockedAnswers.filter(
+      ({ questionId }) => questionId === question.id
+    );
+
+    if (unlockedAnswersPerQuestion.length === 0) {
+      return question;
+    }
+
+    const resolvedAnswers = question.answers.map((answer) => {
+      const matchedUnlocked = unlockedAnswersPerQuestion.find(
+        ({ id }) => id === answer.id
+      );
+
+      return matchedUnlocked
+        ? {
+            ...answer,
+            ...matchedUnlocked,
+            blocked: false,
+          }
+        : answer;
+    });
+
+    return {
+      ...question,
+      answers: resolvedAnswers,
+    };
   });
+
+const Questions = ({ questions, address }) => {
+  const [questionsWithUnlockedAnswers, setQuestionsWithUnlockedAnswers] =
+    useState(questions);
+
+  /**
+   * @description
+   * This might be done better using well defined RQ cache
+   */
+  useEffect(() => {
+    if (address) {
+      fetchAnswers(address).then((unlockedAnswers) => {
+        setQuestionsWithUnlockedAnswers(
+          enrichAnswersWithUnlockedPerQuestion(unlockedAnswers)
+        );
+      });
+    }
+  }, [address]);
+
+  return (
+    <Box>
+      {questionsWithUnlockedAnswers.map((question) => (
+        <Box
+          key={question.id}
+          maxW="sm"
+          borderWidth="1px"
+          borderRadius="lg"
+          overflow="hidden"
+        >
+          <Box mt="1" fontWeight="semibold" lineHeight="tight" isTruncated>
+            <Heading as="h4" textAlign="center" color="black">
+              {question.title}
+            </Heading>
+
+            <Text textAlign="center" color="black">
+              {question.content}
+            </Text>
+          </Box>
+          <Divider />
+          <Box
+            display="flex"
+            flexDirection="column"
+            mt="1"
+            fontWeight="semibold"
+            lineHeight="tight"
+            isTruncated
+          >
+            {question.answers.map((answer) =>
+              !!answer.blocked ? (
+                <Button
+                  key={answer.id}
+                  onClick={() => purchaseAnswer(answer.id)}
+                  colorScheme="green"
+                >
+                  Unlock this answer
+                </Button>
+              ) : (
+                <Text
+                  height="40px"
+                  key={answer.id}
+                  textAlign="center"
+                  color="black"
+                >
+                  {answer.content}
+                </Text>
+              )
+            )}
+          </Box>
+          <Divider />
+          <Box
+            justifyContent="center"
+            mt="1"
+            fontWeight="semibold"
+            lineHeight="tight"
+            isTruncated
+          >
+            <Button
+              onClick={() =>
+                addAnswer(question.id, {
+                  ...exampleAnswer,
+                  authorId: address,
+                })
+              }
+              colorScheme="orange"
+            >
+              Add example answer
+            </Button>
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  );
 };
 
 export async function getServerSideProps() {
-  const users = await fetchUsers();
+  const questions = await fetchQuestions();
 
   return {
-    props: { users },
+    props: { questions },
   };
 }
 
-export default function Home({ users }) {
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
+export default function Home({ questions }) {
+  const { address, chainId, connectWallet, getNetworkMetadata } = useWeb3();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const networkMetadata = useMemo(() => {
+    if (chainId) {
+      return getNetworkMetadata(chainId);
+    }
+  }, [chainId, getNetworkMetadata]);
 
-    await addUser({ email, name });
-
-    setName("");
-    setEmail("");
-  };
   return (
     <div>
       <Head>
@@ -49,78 +164,41 @@ export default function Home({ users }) {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main className="container m-8">
-        <p className="italic ...">Users list:</p>
-        <ul className="list-none">
-          {users.map((user) => (
-            <li key={user.id}>
-              {user.name} - {user.email}
-            </li>
-          ))}
-        </ul>
-        <form className="w-full max-w-sm" onSubmit={handleSubmit}>
-          <div className="md:flex md:items-center mb-6">
-            <div className="md:w-1/3">
-              <label
-                className="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4"
-                htmlFor="inline-full-name"
+      <main>
+        <Box bg="black" w="100%" p={4} color="white" alignItems="center">
+          {address ? (
+            <Menu>
+              {networkMetadata && <NetworkMetadata {...networkMetadata} />}
+            </Menu>
+          ) : (
+            <>
+              <Button
+                onClick={() => connectWallet("injected")}
+                leftIcon={<IoMdWallet />}
+                colorScheme="purple"
               >
-                Full Name
-              </label>
-            </div>
-            <div className="md:w-2/3">
-              <input
-                className="bg-gray-200 appearance-none border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-purple-500"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="md:flex md:items-center mb-6">
-            <div className="md:w-1/3">
-              <label
-                className="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4"
-                htmlFor="inline-password"
-              >
-                Email
-              </label>
-            </div>
-            <div className="md:w-2/3">
-              <input
-                className="bg-gray-200 appearance-none border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-purple-500"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="md:flex md:items-center">
-            <div className="md:w-1/3"></div>
-            <div className="md:w-2/3">
-              <button
-                className="shadow bg-purple-500 hover:bg-purple-400 focus:shadow-outline focus:outline-none text-white font-bold py-2 px-4 rounded"
-                type="submit"
-              >
-                Sign Up
-              </button>
-            </div>
-          </div>
-        </form>
+                Connect MetaMask
+              </Button>
+            </>
+          )}
+        </Box>
+        <Box w="100%" p={4} color="white">
+          <Questions questions={questions} address={address} />
+          {address ? (
+            <Button
+              onClick={() =>
+                addQuestion({
+                  ...exampleQuestion,
+                  authorId: address,
+                })
+              }
+              colorScheme="red"
+            >
+              Add example question
+            </Button>
+          ) : null}
+        </Box>
       </main>
-
-      <footer className="container mx-auto">
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{" "}
-          <span>
-            <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
-          </span>
-        </a>
-      </footer>
     </div>
   );
 }
