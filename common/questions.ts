@@ -16,3 +16,34 @@ export const addQuestion = async (question) => {
     headers: { "Content-Type": "application/json" },
   });
 };
+
+export const enrichAnswersWithUnlockedPerQuestion =
+  (unlockedAnswers) => (curr) =>
+    curr.map((question) => {
+      const unlockedAnswersPerQuestion = unlockedAnswers.filter(
+        ({ questionId }) => questionId === question.id
+      );
+
+      if (unlockedAnswersPerQuestion.length === 0) {
+        return question;
+      }
+
+      const resolvedAnswers = question.answers.map((answer) => {
+        const matchedUnlocked = unlockedAnswersPerQuestion.find(
+          ({ id }) => id === answer.id
+        );
+
+        return matchedUnlocked
+          ? {
+              ...answer,
+              ...matchedUnlocked,
+              blocked: false,
+            }
+          : answer;
+      });
+
+      return {
+        ...question,
+        answers: resolvedAnswers,
+      };
+    });

@@ -17,7 +17,11 @@ export default async function handler(req, res) {
 
   const blockedByDefault = questions.map((question) => ({
     ...question,
-    answers: question.answers.map((answer) => ({ ...answer, blocked: true })),
+    answers: question.answers.map((answer) => ({
+      ...answer,
+      blocked: true,
+      id: answer.id.toString(),
+    })),
   }));
 
   res.status(200).json(blockedByDefault);

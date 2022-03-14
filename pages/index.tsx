@@ -4,7 +4,11 @@ import { Box, Button, Menu, Text, Heading, Divider } from "@chakra-ui/react";
 import { IoMdWallet } from "react-icons/io";
 import { useEffect, useMemo, useState } from "react";
 import NetworkMetadata from "../components/NetworkMetadata";
-import { fetchQuestions, addQuestion } from "../common/questions";
+import {
+  fetchQuestions,
+  addQuestion,
+  enrichAnswersWithUnlockedPerQuestion,
+} from "../common/questions";
 import { addAnswer, fetchAnswers, purchaseAnswer } from "../common/answers";
 
 const exampleQuestion = {
@@ -15,36 +19,6 @@ const exampleQuestion = {
 const exampleAnswer = {
   content: "dunno",
 };
-
-const enrichAnswersWithUnlockedPerQuestion = (unlockedAnswers) => (curr) =>
-  curr.map((question) => {
-    const unlockedAnswersPerQuestion = unlockedAnswers.filter(
-      ({ questionId }) => questionId === question.id
-    );
-
-    if (unlockedAnswersPerQuestion.length === 0) {
-      return question;
-    }
-
-    const resolvedAnswers = question.answers.map((answer) => {
-      const matchedUnlocked = unlockedAnswersPerQuestion.find(
-        ({ id }) => id === answer.id
-      );
-
-      return matchedUnlocked
-        ? {
-            ...answer,
-            ...matchedUnlocked,
-            blocked: false,
-          }
-        : answer;
-    });
-
-    return {
-      ...question,
-      answers: resolvedAnswers,
-    };
-  });
 
 const Questions = ({ questions, address }) => {
   const [questionsWithUnlockedAnswers, setQuestionsWithUnlockedAnswers] =
@@ -93,7 +67,16 @@ const Questions = ({ questions, address }) => {
             isTruncated
           >
             {question.answers.map((answer) =>
-              !!answer.blocked ? (
+              !address ? (
+                <Text
+                  height="40px"
+                  key={answer.id}
+                  textAlign="center"
+                  color="black"
+                >
+                  Login to unlock
+                </Text>
+              ) : !!answer.blocked ? (
                 <Button
                   key={answer.id}
                   onClick={() => purchaseAnswer(answer.id)}
@@ -121,17 +104,19 @@ const Questions = ({ questions, address }) => {
             lineHeight="tight"
             isTruncated
           >
-            <Button
-              onClick={() =>
-                addAnswer(question.id, {
-                  ...exampleAnswer,
-                  authorId: address,
-                })
-              }
-              colorScheme="orange"
-            >
-              Add example answer
-            </Button>
+            {address ? (
+              <Button
+                onClick={() =>
+                  addAnswer(question.id, {
+                    ...exampleAnswer,
+                    authorId: address,
+                  })
+                }
+                colorScheme="orange"
+              >
+                Add example answer
+              </Button>
+            ) : null}
           </Box>
         </Box>
       ))}

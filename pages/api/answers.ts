@@ -3,8 +3,6 @@ import { prisma } from "./_common/client";
 export default async function handler(req, res) {
   const { accountId, secrets } = req.body;
 
-  console.log(secrets);
-
   const answers = await prisma.answer.findMany({
     select: {
       id: true,
@@ -31,9 +29,14 @@ export default async function handler(req, res) {
     // },
   });
 
-  const parsedAnswers = answers.filter(({ authorId, secret }) => {
-    return secrets.includes(secret); // ||  accountId === authorId
-  });
+  const parsedAnswers = answers
+    .filter(({ authorId, secret }) => {
+      return secrets.includes(secret); // ||  accountId === authorId
+    })
+    .map((answer) => ({
+      ...answer,
+      id: answer.id.toString(),
+    }));
 
   res.status(200).json(parsedAnswers);
 }
